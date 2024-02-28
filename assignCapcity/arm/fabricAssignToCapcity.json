@@ -1,34 +1,89 @@
 {
-  "type": "Microsoft.Logic/workflows",
-  "apiVersion": "2017-07-01",
-  "name": "[parameters('logicAppName')]",
-  "location": "[parameters('location')]",
-  "identity": {
-    "type": "SystemAssigned"
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.22.6.54827",
+      "templateHash": "7231917851099424337"
+    }
   },
-  "properties": {
-    "state": "Enabled",
-    "definition": {
-      "actions": {
-        "AssignToCapacityHTTP": {
-          "runAfter": {},
-          "type": "Http",
-          "inputs": {
-            "authentication": {
-              "audience": "https://api.fabric.microsoft.com/",
-              "type": "ManagedServiceIdentity"
-            },
-            "method": "POST",
-            "uri": "https://api.fabric.microsoft.com/v1/workspaces/@{parameters('workspaceId')}/assignToCapacity",
-            "body": {
-              "capacityId": "@{parameters('capacityId')}"
-            },
-            "headers": {
-              "Content-Type": "application/json"
-            }
-          }
-        }
+  "parameters": {
+    "logicAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the logic app. Unique to the Resource Group. 1-43 Characters"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure Region that Logic App will be deployed to. Likely the same as selected Resource Group"
+      }
+    },
+    "workspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "ID of the workspace that is being assigned to a capacity."
+      }
+    },
+    "capacityId": {
+      "type": "string",
+      "metadata": {
+        "description": "ID of the capacity to which the workspace is being assigned."
       }
     }
-  }
+  },
+  "variables": {
+    "fabricApiUrl": "https://api.fabric.microsoft.com/v1"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2017-07-01",
+      "name": "[parameters('logicAppName')]",
+      "location": "[parameters('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "state": "Enabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "triggers": {
+            "Recurrence": {
+              "recurrence": {
+                "frequency": "Day",
+                "interval": 1
+              },
+              "type": "Recurrence"
+            }
+          },
+          "actions": {
+            "AssignToCapacityHTTP": {
+              "runAfter": {},
+              "type": "Http",
+              "inputs": {
+                "method": "POST",
+                "uri": "[concat(variables('fabricApiUrl'), '/workspaces/', parameters('workspaceId'), '/assignToCapacity')]",
+                "body": {
+                  "capacityId": "[parameters('capacityId')]"
+                },
+                "headers": {
+                  "Content-Type": "application/json"
+                },
+                "authentication": {
+                  "type": "ManagedServiceIdentity",
+                  "audience": "[variables('fabricApiUrl')]"
+                }
+              }
+            }
+          }
+        },
+        "parameters": {}
+      }
+    }
+  ]
 }
